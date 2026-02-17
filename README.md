@@ -1,6 +1,6 @@
-# 🛡️ OSS Maintainer Agent
+# 🛡️ OSS Maintainer Helper
 
-> **An intelligent multi-agent system for open source maintainers** — powered by [Elastic Agent Builder](https://www.elastic.co/agent-builder), ES|QL, and Elasticsearch.
+> **An intelligent pipeline for open source repository maintenance** — powered by [Elastic Agent Builder](https://www.elastic.co/agent-builder), ES|QL, and Elasticsearch.
 
 Built for the **Elasticsearch Agent Builder Hackathon 2026**.
 
@@ -8,57 +8,58 @@ Built for the **Elasticsearch Agent Builder Hackathon 2026**.
 
 ## The Problem
 
-Open source maintainers are drowning. A popular repository can accumulate hundreds of PRs, each requiring manual triage: Is this risky? Who should review it? Is CI failing? Is this contributor new? Maintainers spend **hours per week** on repetitive triage instead of building.
+Open source maintainers are drowning. Popular repositories accumulate hundreds of pull requests, each requiring manual triage: Is this risky? Who should review it? Is CI failing? Is this from a first-time contributor? Maintainers spend **hours per week** on repetitive triage instead of building.
 
 ## The Solution
 
-OSS Maintainer Agent is a **4-agent orchestration pipeline** that automates repository intelligence using Elasticsearch as the sole reasoning substrate:
+OSS Maintainer Helper is a **4-step analysis pipeline** paired with an **Elastic Agent Builder conversational agent** that automates repository intelligence using Elasticsearch:
 
 ```
-GitHub API → Intake Agent → Elasticsearch (5 indices)
-                                  ↓
-                    Agent Builder (4 ES|QL Tools)
-                                  ↓
-              Risk Agent → Health Agent → Action Agent
-                                  ↓
-                    Maintainer Briefing Dashboard
-                              + Agent Chat
+GitHub API → Fetch Repo Data → Elasticsearch (5 indices)
+                                      ↓
+                       Analyze Risk → Analyze Health → Generate Briefing
+                                      ↓
+                        Maintainer Dashboard + Agent Chat
 ```
 
-### What It Does
+### How It Works
 
-1. **Intake Agent** — Fetches PRs, issues, and contributor data from GitHub with rate-limit-aware batching, ETag caching, and incremental sync (upsert, not delete-all)
-2. **Risk Agent** — Computes deterministic risk scores using weighted factor analysis (diff size, core file changes, CI failures, contributor history) with full reasoning traces persisted to Elasticsearch
-3. **Health Agent** — Generates comprehensive health telemetry using ES|QL aggregations: merge velocity trends, backlog growth, CI failure time-series, and stale PR detection
-4. **Action Agent** — Synthesizes a Maintainer Briefing: urgency score, priority queue, stability warnings, proposed labels, reviewer suggestions, and a justification trace
-5. **Agent Chat** — Conversational interface powered by **Elastic Agent Builder's Converse API** with 4 custom ES|QL tools for natural language queries over your repository data
+The system runs a **sequential pipeline** of 4 deterministic steps:
+
+1. **Fetching Repo Data** — Fetches PRs, issues, and contributor data from GitHub with rate-limit-aware batching, ETag caching, and incremental sync
+2. **Analyzing Risk** — Computes deterministic risk scores using weighted factor analysis (diff size, core file changes, CI failures, contributor history) with full reasoning traces persisted to Elasticsearch
+3. **Analyzing Health** — Generates health telemetry using ES|QL aggregations: merge velocity trends, backlog growth, CI failure time-series, and stale PR detection
+4. **Generating Briefing** — Synthesizes a Maintainer Briefing: urgency score, priority queue, stability warnings, proposed labels, reviewer suggestions, and justification trace
+
+On top of the pipeline, an **Elastic Agent Builder** conversational agent lets you ask natural language questions about your repository data. It autonomously decides which ES|QL queries to execute and interprets the results.
 
 ## Elastic Products Used
 
 | Product | Usage |
 |---------|-------|
-| **Agent Builder** | 4 custom ES|QL tools + OSS Maintainer Agent via Kibana API (`/api/agent_builder/tools`, `/agents`, `/converse`) |
-| **ES\|QL** | All analytics queries: PR risk analysis, contributor ranking, health metrics, stale detection |
-| **Elasticsearch** | 5 indices (`repo_prs`, `repo_issues`, `repo_contributors`, `orchestration_runs`, `reasoning_traces`), bulk upsert, date histogram aggregations |
-| **Elasticsearch Aggregations** | Merge velocity trends (8 weeks), backlog growth, CI failure time-series |
+| **Agent Builder** | Custom AI agent with ES|QL tools for conversational queries via Kibana Converse API |
+| **ES\|QL** | All analytics queries: PR distribution, contributor ranking, health metrics, stale detection |
+| **Elasticsearch** | 5 indices (`repo_prs`, `repo_issues`, `repo_contributors`, `orchestration_runs`, `reasoning_traces`), bulk upsert |
+| **Elasticsearch Aggregations** | Merge velocity trends (date histogram), backlog growth, CI failure time-series |
 
 ## Features
 
-- ⚡ **Real-time SSE pipeline** — Watch 4 agents execute sequentially with live progress and timing
-- 🧠 **Deterministic risk scoring** — No LLM guesswork; weighted factors with transparent reasoning traces
-- 📊 **Trend visualization** — Merge velocity, backlog growth, and CI failure bar charts
-- 🎯 **Urgency gauge** — Composite urgency score (0-100) with actionable priority queue
-- 💬 **Agent Chat** — Ask questions in natural language; Agent Builder queries ES via ES|QL tools
-- 🏷️ **Label suggestions** — Auto-generated GitHub label recommendations per PR
-- 👥 **Reviewer suggestions** — Based on contributor merge history from ES analytics
-- 🔄 **Incremental sync** — Upsert-based indexing with 5-minute debounce
-- 🛑 **Cancel button** — Abort any running orchestration instantly
+-  **Real-time SSE pipeline** : Watch 4 steps execute sequentially with live progress and timing
+-  **Deterministic risk scoring** : No LLM guesswork; weighted factors with transparent reasoning traces
+-  **Agent Chat** : Ask questions in natural language; the Elastic Agent Builder agent autonomously queries ES via ES|QL tools, with a visible thought process breakdown
+-  **Trend visualization** : Merge velocity, backlog growth, and CI failure bar charts (8-week windows)
+-  **Urgency gauge** : Composite urgency score (0-100) with actionable priority queue
+-  **Label suggestions** : Auto-generated GitHub label recommendations per PR
+-  **Reviewer suggestions** : Based on contributor merge history from ES analytics
+-  **Info tooltips** : Hover over any metric card to see a plain-language explanation
+-  **Incremental sync** : Upsert-based indexing with 5-minute debounce
+-  **Cancel button** : Abort any running pipeline instantly
 
 ## Setup
 
 ### Prerequisites
 - Node.js 18+
-- [Elastic Cloud Serverless](https://cloud.elastic.co) project (free trial works)
+- [Elastic Cloud](https://cloud.elastic.co) project (free trial works)
 
 ### Installation
 
@@ -68,13 +69,15 @@ cd OSS-Maintainer-Elastic
 npm install
 ```
 
-### 1. Agent Builder Configuration
-The agent instructions and custom ES\|QL queries used for the tools are documented in the [elastic/](file:///c:/OSS-Maintainer/OSS-Maintainer-Elastic/elastic) directory as per hackathon requirements:
-- [Agent Instructions](file:///c:/OSS-Maintainer/OSS-Maintainer-Elastic/elastic/agent-instructions.md)
-- [Custom ES\|QL Queries](file:///c:/OSS-Maintainer/OSS-Maintainer-Elastic/elastic/tool-queries.esql)
+### 1. Elastic Agent Builder Setup
 
-### 2. Set up Environment Variables
-Create a `.env` file based on [.env.example](file:///c:/OSS-Maintainer/OSS-Maintainer-Elastic/.env.example):
+Create an agent and assign ES|QL tools in the Kibana Agent Builder UI. The agent instructions and sample queries are in the `elastic/` directory:
+- `elastic/agent-instructions.md` — System prompt for the agent
+- `elastic/tool-queries.esql` — ES|QL queries used by the agent's tools
+
+### 2. Environment Variables
+
+Create a `.env` file based on `.env.example`:
 ```bash
 # Elasticsearch connection
 ELASTICSEARCH_URL='https://...'
@@ -82,14 +85,12 @@ ELASTICSEARCH_API_KEY='...'
 
 # Kibana connection (for Agent Builder)
 KIBANA_URL='https://...'
-# Add ELASTIC_AGENT_ID after creating the agent in Kibana
-ELASTIC_AGENT_ID='...'
+ELASTIC_AGENT_ID='...'  # From Kibana Agent Builder UI
 
-# Option 1: Basic auth (most reliable for Kibana APIs)
+# Authentication (choose one)
 KIBANA_USERNAME='elastic'
 KIBANA_PASSWORD='...'
-
-# Option 2: API key (works on serverless Elastic Cloud)
+# OR
 # KIBANA_API_KEY='...'
 
 # GitHub Personal Access Token
@@ -108,37 +109,36 @@ Open [http://localhost:3000](http://localhost:3000) and enter a GitHub repositor
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Next.js Dashboard                         │
-│  ┌──────────┬────────────┬───────────┬──────────┬─────────┐ │
-│  │  Ingest  │   Risk     │  Health   │ Decision │  Agent  │ │
-│  │  Panel   │   Panel    │  Panel    │  Output  │  Chat   │ │
-│  └────┬─────┴─────┬──────┴────┬──────┴────┬─────┴────┬────┘ │
-│       │           │           │           │          │       │
-│  ┌────▼───────────▼───────────▼───────────▼──────────▼────┐ │
-│  │              SSE Stream (Typed Events)                  │ │
-│  └────────────────────────┬───────────────────────────────┘ │
-└───────────────────────────┼─────────────────────────────────┘
+│                    Next.js Dashboard                        │
+│  ┌──────────┬────────────┬───────────┬──────────┬─────────┐│
+│  │  Ingest  │   Risk     │  Health   │ Decision │  Agent  ││
+│  │  Panel   │   Panel    │  Panel    │  Output  │  Chat   ││
+│  └────┬─────┴─────┬──────┴────┬──────┴────┬─────┴────┬────┘│
+│       │           │           │           │          │      │
+│  ┌────▼───────────▼───────────▼───────────▼──────────▼────┐│
+│  │              SSE Stream (Typed Events)                  ││
+│  └────────────────────────┬───────────────────────────────┘│
+└───────────────────────────┼────────────────────────────────┘
                             │
-┌───────────────────────────▼─────────────────────────────────┐
-│                   Agent Orchestrator                         │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
-│  │  Intake  ├─►│   Risk   ├─►│  Health  ├─►│  Action  │   │
-│  │  Agent   │  │  Agent   │  │  Agent   │  │  Agent   │   │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘   │
-└───────┼──────────────┼────────────┼──────────────┼──────────┘
+┌───────────────────────────▼────────────────────────────────┐
+│                  Pipeline Orchestrator                      │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
+│  │  Fetch   ├─►│ Analyze  ├─►│ Analyze  ├─►│ Generate │  │
+│  │  Data    │  │  Risk    │  │  Health  │  │ Briefing │  │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬─────┘  │
+└───────┼──────────────┼────────────┼──────────────┼─────────┘
         │              │            │              │
-┌───────▼──────────────▼────────────▼──────────────▼──────────┐
-│                     Elasticsearch                            │
-│  ┌───────────┐ ┌──────────┐ ┌────────────┐ ┌─────────────┐ │
+┌───────▼──────────────▼────────────▼──────────────▼─────────┐
+│                     Elasticsearch                           │
+│  ┌───────────┐ ┌──────────┐ ┌────────────┐ ┌────────────┐ │
 │  │ repo_prs  │ │  issues  │ │ reasoning  │ │orchestration│ │
-│  │           │ │          │ │  _traces   │ │   _runs     │ │
-│  └───────────┘ └──────────┘ └────────────┘ └─────────────┘ │
-│                                                              │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │        Agent Builder (4 ES|QL Tools)                  │   │
-│  │  pr_risk_analysis │ repo_health │ contributors │ stale│   │
-│  └──────────────────────────────────────────────────────┘   │
-└──────────────────────────────────────────────────────────────┘
+│  │           │ │          │ │  _traces   │ │   _runs    │ │
+│  └───────────┘ └──────────┘ └────────────┘ └────────────┘ │
+│                                                             │
+│  ┌────────────────────────────────────────────────────────┐ │
+│  │      Agent Builder (ES|QL Tools + Converse API)       │ │
+│  └────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ## Tech Stack
@@ -146,7 +146,7 @@ Open [http://localhost:3000](http://localhost:3000) and enter a GitHub repositor
 - **Frontend**: Next.js 16 (App Router), React, TypeScript
 - **Backend**: Next.js API Routes, Server-Sent Events
 - **Search & Analytics**: Elasticsearch, ES|QL
-- **AI Agent**: Elastic Agent Builder (Kibana API)
+- **AI Agent**: Elastic Agent Builder (Converse API)
 - **Data Source**: GitHub REST API
 
 ## License
