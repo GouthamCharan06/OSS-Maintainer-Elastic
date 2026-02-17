@@ -1,17 +1,24 @@
 import { Client } from '@elastic/elasticsearch';
 
-const client = new Client({
-    node: process.env.ELASTICSEARCH_URL!,
-    auth: {
-        apiKey: process.env.ELASTICSEARCH_API_KEY!,
-    },
-    tls: {
-        rejectUnauthorized: false,
-    },
-});
+let _client: Client | null = null;
+
+function getClient(): Client {
+    if (!_client) {
+        _client = new Client({
+            node: process.env.ELASTICSEARCH_URL!,
+            auth: {
+                apiKey: process.env.ELASTICSEARCH_API_KEY!,
+            },
+            tls: {
+                rejectUnauthorized: false,
+            },
+        });
+    }
+    return _client;
+}
 
 export const ElasticTool = {
-    getClient: () => client,
+    getClient,
     ensureIndices,
     bulkUpsert,
     bulkIndex,
@@ -108,7 +115,7 @@ const REASONING_TRACE_MAPPINGS = {
 
 async function verifyConnection(): Promise<void> {
     try {
-        await client.ping();
+        await getClient().ping();
     } catch (err: any) {
         const status = err.meta?.statusCode;
         if (status === 401 || status === 403) {
@@ -127,9 +134,9 @@ async function createIndexIfNotExists(
     name: string,
     mappings: Record<string, unknown>
 ): Promise<void> {
-    const exists = await client.indices.exists({ index: name });
+    const exists = await getClient().indices.exists({ index: name });
     if (!exists) {
-        await client.indices.create({
+        await getClient().indices.create({
             index: name,
             body: { mappings },
         });
@@ -174,7 +181,7 @@ export async function bulkUpsert(
         ];
     });
 
-    const result = await client.bulk({ refresh: true, operations });
+    const result = await getClient().bulk({ refresh: true, operations });
 
     if (result.errors) {
         const errorItems = result.items.filter((item) => item.update?.error);
@@ -204,7 +211,7 @@ export async function bulkIndex(
         doc,
     ]);
 
-    const result = await client.bulk({ refresh: true, operations });
+    const result = await getClient().bulk({ refresh: true, operations });
 
     if (result.errors) {
         const errorItems = result.items.filter((item) => item.index?.error);
@@ -225,7 +232,7 @@ export async function bulkIndex(
 
 export async function getLastIngestionTime(repo: string): Promise<string | null> {
     try {
-        const result = await client.search({
+        const result = await getClient().search({
             index: 'repo_prs',
             size: 1,
             query: { term: { repo } },
@@ -247,7 +254,7 @@ export async function getLastIngestionTime(repo: string): Promise<string | null>
 
 export async function indexOrchestrationRun(run: Record<string, unknown>): Promise<void> {
     try {
-        await client.index({
+        await getClient().index({
             index: 'orchestration_runs',
             body: run,
             refresh: true,
@@ -271,7 +278,7 @@ export async function indexReasoningTraces(
             { ...trace, created_at: new Date().toISOString() },
         ]);
 
-        await client.bulk({ refresh: true, operations });
+        await getClient().bulk({ refresh: true, operations });
         console.log(`[Elastic] Indexed ${traces.length} reasoning traces`);
     } catch (err) {
         console.error(`[Elastic] Failed to index reasoning traces:`, err);
@@ -284,7 +291,7 @@ export async function deleteRepoData(repo: string): Promise<void> {
     const indices = ['repo_prs', 'repo_issues', 'repo_contributors'];
     for (const index of indices) {
         try {
-            await client.deleteByQuery({
+            await getClient().deleteByQuery({
                 index,
                 body: {
                     query: { term: { repo } },
