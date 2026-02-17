@@ -1,0 +1,35 @@
+// --- High Risk PR Analysis ---
+// Identifies risky PRs based on the deterministic risk_score calculated in the pipeline.
+FROM repo_prs 
+| SORT risk_score DESC 
+| LIMIT 10 
+| KEEP pr_number, title, author, risk_score, ci_status, state;
+
+// --- Repository Health Metrics ---
+// Aggregates PR states and CI statuses to provide a stability overview.
+FROM repo_prs 
+| STATS count = COUNT(*) BY state, ci_status 
+| SORT count DESC;
+
+// --- Contributor Ranking & Reviewer Selection ---
+// Identifies top contributors to aid in intelligent reviewer balancing.
+FROM repo_prs 
+| WHERE state == "merged" 
+| STATS merged_count = COUNT(*) BY author 
+| SORT merged_count DESC 
+| LIMIT 10;
+
+// --- Stale PR Detection ---
+// Finds pull requests that have been open for more than two weeks.
+FROM repo_prs 
+| WHERE state == "open" AND pr_age_days > 14 
+| SORT pr_age_days DESC 
+| KEEP pr_number, title, author, pr_age_days 
+| LIMIT 10;
+
+// --- Reasoning Trace Analysis ---
+// Fetches detailed justifications for why a specific PR received its risk score.
+FROM reasoning_traces
+| WHERE pr_number == ?pr_number
+| KEEP factor, weight, explanation
+| SORT weight DESC;

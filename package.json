@@ -1,0 +1,25 @@
+{
+  "name": "oss-maintainer-elastic",
+  "version": "1.0.0",
+  "description": "Open Source Systems Maintainer Helper powered by Elasticsearch and GitHub API",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@elastic/elasticsearch": "^8.17.0",
+    "lucide-react": "^0.564.0",
+    "next": "16.1.6",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.6",
+    "typescript": "^5"
+  }
+}
