@@ -10,6 +10,13 @@ import type {
     StepTiming,
     GitHubRateLimitInfo,
 } from '@/lib/types';
+import type { AgentStep } from '@/lib/tools/AgentBuilderTool';
+
+export interface AgentInsight {
+    narrative: string;
+    steps: AgentStep[];
+    generatedAt: string;
+}
 
 interface DashboardState {
     currentRepo: string | null;
@@ -27,6 +34,8 @@ interface DashboardState {
     error: string | null;
     activePanel: 'ingest' | 'risk' | 'health' | 'decision' | 'agent-chat';
     agentStates: StepState[];
+    agentInsight: AgentInsight | null;
+    agentInsightLoading: boolean;
 }
 
 export interface StepState {
@@ -68,6 +77,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         error: null,
         activePanel: 'ingest',
         agentStates: [...STEPS_INIT],
+        agentInsight: null,
+        agentInsightLoading: false,
     });
 
     const abortControllerRef = useRef<AbortController | null>(null);
@@ -105,6 +116,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
             intakeData: null,
             riskData: null,
             healthData: null,
+            agentInsight: null,
+            agentInsightLoading: false,
             actionData: null,
             stepTimings: [],
             totalDurationMs: 0,
@@ -219,8 +232,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
                     overallPercent: 100,
                     activeAgent: null,
                     activeStep: null,
-                    activePanel: 'health',
+                    activePanel: 'agent-chat',
                 }));
+                // Trigger agent-generated executive briefing
+                generateAgentInsight(event.repo);
                 break;
 
             case 'error':
@@ -230,6 +245,36 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
                     error: event.message,
                 }));
                 break;
+        }
+    };
+
+    const generateAgentInsight = async (repo: string) => {
+        setState(prev => ({ ...prev, agentInsightLoading: true }));
+        try {
+            const res = await fetch('/api/agent-chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    message: `For repository ${repo}, run the following analysis using ES|QL queries:\n1. Query repo_prs for the top 5 highest risk_score open PRs\n2. Check the CI failure rate across all PRs\n3. Count stale PRs (open > 14 days)\n4. Query repo_contributors for top contributors\nProduce a concise 4-sentence executive summary of what the maintainer should focus on today. Be specific with PR numbers and metrics.`,
+                    repo,
+                }),
+            });
+            const data = await res.json();
+            if (data.response?.message) {
+                setState(prev => ({
+                    ...prev,
+                    agentInsight: {
+                        narrative: data.response.message,
+                        steps: data.response.steps || [],
+                        generatedAt: new Date().toISOString(),
+                    },
+                    agentInsightLoading: false,
+                }));
+            } else {
+                setState(prev => ({ ...prev, agentInsightLoading: false }));
+            }
+        } catch {
+            setState(prev => ({ ...prev, agentInsightLoading: false }));
         }
     };
 

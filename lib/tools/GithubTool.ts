@@ -322,8 +322,8 @@ export async function fetchPullRequests(
 
 // ─── First-time Contributor Check ───
 
-interface GHCommitSearchResult {
-    total_count: number;
+interface GHCommitListItem {
+    sha: string;
 }
 
 async function isFirstTimeContributor(
@@ -333,11 +333,12 @@ async function isFirstTimeContributor(
     token?: string
 ): Promise<boolean> {
     try {
-        const result = await ghFetch<GHCommitSearchResult>(
-            `${GITHUB_API}/search/commits?q=author:${author}+repo:${owner}/${repo}&per_page=1`,
+        // Use the repository commits API (not search) to avoid 422 on qualifier-only queries
+        const result = await ghFetch<GHCommitListItem[]>(
+            `${GITHUB_API}/repos/${owner}/${repo}/commits?author=${encodeURIComponent(author)}&per_page=2`,
             token
         );
-        return result.total_count <= 1;
+        return result.length <= 1;
     } catch {
         return false;
     }
