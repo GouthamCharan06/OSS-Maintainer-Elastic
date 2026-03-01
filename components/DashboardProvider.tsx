@@ -260,6 +260,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
                 }),
             });
             const data = await res.json();
+            // If trial expired, silently stop — the chat panel will show the banner
+            if (data.trialExpired) {
+                setState(prev => ({ ...prev, agentInsightLoading: false }));
+                return;
+            }
             if (data.response?.message) {
                 setState(prev => ({
                     ...prev,

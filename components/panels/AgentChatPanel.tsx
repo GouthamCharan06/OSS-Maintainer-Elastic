@@ -28,6 +28,8 @@ import {
     X,
     Minimize2,
     Maximize2,
+    ShieldAlert,
+    ExternalLink,
 } from 'lucide-react';
 
 interface ChatMessage {
@@ -639,6 +641,7 @@ const AgentChatPanel = () => {
     const [agentId, setAgentId] = useState<string | null>(null);
     const [conversationId, setConversationId] = useState<string | null>(null);
     const [agentAvailable, setAgentAvailable] = useState<boolean | null>(null);
+    const [trialExpired, setTrialExpired] = useState(false);
     const [latestIsStreaming, setLatestIsStreaming] = useState(false);
     const [insightInjected, setInsightInjected] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -711,6 +714,7 @@ const AgentChatPanel = () => {
             if (data.agentId) setAgentId(data.agentId);
             if (data.conversationId) setConversationId(data.conversationId);
             if (data.agentBuilderAvailable !== undefined) setAgentAvailable(data.agentBuilderAvailable);
+            if (data.trialExpired) setTrialExpired(true);
 
             const isErr = !!(data.error && !data.response?.message);
             const agentMsg: ChatMessage = {
@@ -800,11 +804,11 @@ const AgentChatPanel = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <div style={{
                         width: '8px', height: '8px', borderRadius: '50%',
-                        backgroundColor: agentAvailable === false ? '#f59e0b' : '#10b981',
-                        boxShadow: agentAvailable === true ? '0 0 8px rgba(16, 185, 129, 0.5)' : 'none',
+                        backgroundColor: trialExpired ? '#ef4444' : agentAvailable === false ? '#f59e0b' : '#10b981',
+                        boxShadow: trialExpired ? '0 0 8px rgba(239, 68, 68, 0.5)' : agentAvailable === true ? '0 0 8px rgba(16, 185, 129, 0.5)' : 'none',
                     }} />
-                    <span style={{ fontSize: '0.7rem', color: '#64748b' }}>
-                        {agentAvailable === false ? 'Fallback Mode' : agentAvailable === true ? 'Agent Builder Connected' : 'Ready'}
+                    <span style={{ fontSize: '0.7rem', color: trialExpired ? '#f87171' : '#64748b' }}>
+                        {trialExpired ? 'Trial Expired' : agentAvailable === false ? 'Fallback Mode' : agentAvailable === true ? 'Agent Builder Connected' : 'Ready'}
                     </span>
                 </div>
             </div>
@@ -821,7 +825,50 @@ const AgentChatPanel = () => {
                 gap: '1rem',
                 padding: '0.5rem 0',
             }}>
-                {messages.length === 0 && (
+                {/* Trial Expired Banner */}
+                {trialExpired && (
+                    <div style={{
+                        padding: '1rem 1.25rem',
+                        background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(239, 68, 68, 0.06))',
+                        border: '1px solid rgba(245, 158, 11, 0.3)',
+                        borderRadius: '10px',
+                        marginBottom: '0.75rem',
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.6rem' }}>
+                            <div style={{
+                                width: '32px', height: '32px', borderRadius: '8px',
+                                background: 'linear-gradient(135deg, #f59e0b, #ef4444)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                            }}>
+                                <ShieldAlert size={16} color="white" />
+                            </div>
+                            <div>
+                                <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fbbf24', margin: 0 }}>
+                                    Elastic Cloud Trial Expired
+                                </h4>
+                                <p style={{ fontSize: '0.7rem', color: '#d97706', margin: 0 }}>
+                                    The AI connector subscription has ended
+                                </p>
+                            </div>
+                        </div>
+                        <p style={{ fontSize: '0.78rem', color: '#fcd34d', lineHeight: '1.6', margin: '0 0 0.6rem 0' }}>
+                            The Agent Chat uses Elastic Agent Builder&apos;s inference connector to power conversations.
+                            Your trial period has ended, so the connector can no longer reach the AI model.
+                        </p>
+                        <div style={{ fontSize: '0.72rem', color: '#94a3b8', lineHeight: '1.6' }}>
+                            <strong style={{ color: '#e2e8f0' }}>To restore Agent Chat:</strong>
+                            <ul style={{ margin: '0.35rem 0 0 1.25rem', padding: 0 }}>
+                                <li>Renew your trial or upgrade at <a href="https://cloud.elastic.co" target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', textDecoration: 'underline', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>cloud.elastic.co <ExternalLink size={10} /></a></li>
+                                <li>Or update the inference connector in Kibana with new credentials</li>
+                            </ul>
+                        </div>
+                        <p style={{ fontSize: '0.65rem', color: '#64748b', marginTop: '0.6rem', fontStyle: 'italic' }}>
+                            ℹ️ The rest of the dashboard (Ingest, Risk, Health panels) continues to work normally — they use direct Elasticsearch APIs.
+                        </p>
+                    </div>
+                )}
+
+                {messages.length === 0 && !trialExpired && (
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2rem' }}>
                         <div style={{ textAlign: 'center', maxWidth: '500px' }}>
                             <div style={{
@@ -996,7 +1043,7 @@ const AgentChatPanel = () => {
             )}
 
             {/* Quick Prompts — Dynamic based on ingested data */}
-            {currentRepo && !isLoading && (
+            {currentRepo && !isLoading && !trialExpired && (
                 <div style={{
                     display: 'flex',
                     flexWrap: 'wrap',
@@ -1038,8 +1085,8 @@ const AgentChatPanel = () => {
                         type="text"
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
-                        placeholder={currentRepo ? 'Ask about this repository...' : 'Ingest a repo first...'}
-                        disabled={isLoading || !currentRepo}
+                        placeholder={trialExpired ? 'Agent Chat unavailable — trial expired' : currentRepo ? 'Ask about this repository...' : 'Ingest a repo first...'}
+                        disabled={isLoading || !currentRepo || trialExpired}
                         style={{
                             width: '100%',
                             padding: '0.75rem 1rem 0.75rem 2.75rem',
@@ -1054,7 +1101,7 @@ const AgentChatPanel = () => {
                 </div>
                 <button
                     type="submit"
-                    disabled={!input.trim() || isLoading || !currentRepo}
+                    disabled={!input.trim() || isLoading || !currentRepo || trialExpired}
                     style={{
                         padding: '0.75rem 1.25rem',
                         backgroundColor: !input.trim() || isLoading ? '#1e293b' : '#3b82f6',

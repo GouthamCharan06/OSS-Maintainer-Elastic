@@ -3,6 +3,13 @@
 // Agent and tools are created via Kibana UI, not programmatically
 // Supports both API key auth (serverless) and basic auth (hosted)
 
+export class TrialExpiredError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'TrialExpiredError';
+    }
+}
+
 const KIBANA_URL = process.env.KIBANA_URL || process.env.ELASTICSEARCH_URL?.replace('.es.', '.kb.') || '';
 
 // Auth: prefer basic auth for Kibana, fall back to API key (works on serverless)
@@ -75,9 +82,21 @@ async function kibanaFetch<T>(
     if (!res.ok) {
         const text = await res.text();
 
+        // Detect trial/subscription expiry: Kibana returns 500 wrapping
+        // a connector 403 when the inference API trial has expired
+        if (res.status === 500 && /forbidden|status \[403\]/i.test(text)) {
+            throw new TrialExpiredError(
+                'Your Elastic Cloud trial or AI connector subscription has expired. ' +
+                'The Agent Builder chat requires an active subscription to the inference API connector. ' +
+                'Please renew your Elastic Cloud trial or update your connector configuration in Kibana.'
+            );
+        }
+
         // Handle specific trial expiration / auth errors
         if (res.status === 401 || res.status === 403) {
-            throw new Error(`Authentication Failed (401/403). The Elastic Cloud trial or API key may have expired. Please check your credentials in .env.`);
+            throw new TrialExpiredError(
+                'Authentication failed — the Elastic Cloud trial or API key may have expired. Please check your credentials in .env.'
+            );
         }
         if (res.status === 502 || res.status === 503) {
             throw new Error(`Service Unavailable (${res.status}). The Elastic Cloud deployment may be dormant or expired.`);

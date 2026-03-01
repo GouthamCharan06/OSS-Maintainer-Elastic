@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { AgentBuilderTool } from '@/lib/tools/AgentBuilderTool';
+import { AgentBuilderTool, TrialExpiredError } from '@/lib/tools/AgentBuilderTool';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,6 +38,19 @@ export async function POST(req: NextRequest) {
             agentBuilderAvailable: true,
         });
     } catch (err) {
+        // Return a structured, user-friendly response for trial expiry
+        if (err instanceof TrialExpiredError) {
+            console.warn('[AgentChat] Trial expired:', err.message);
+            return Response.json({
+                response: {
+                    message: err.message,
+                    tool_calls: [],
+                },
+                conversationId: null,
+                agentBuilderAvailable: false,
+                trialExpired: true,
+            });
+        }
         const message = err instanceof Error ? err.message : String(err);
         console.error('[AgentChat] Error:', message);
         return Response.json({ error: message }, { status: 500 });

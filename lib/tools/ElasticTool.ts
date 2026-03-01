@@ -4,13 +4,20 @@ let _client: Client | null = null;
 
 function getClient(): Client {
     if (!_client) {
+        const url = process.env.ELASTICSEARCH_URL;
+        const apiKey = process.env.ELASTICSEARCH_API_KEY;
+
+        if (!url || !apiKey) {
+            throw new Error("Missing Elastic credentials. Please set ELASTICSEARCH_URL and ELASTICSEARCH_API_KEY in your environment variables (.env or Vercel settings).");
+        }
+
         _client = new Client({
-            node: process.env.ELASTICSEARCH_URL!,
+            node: url,
             auth: {
-                apiKey: process.env.ELASTICSEARCH_API_KEY!,
+                apiKey: apiKey,
             },
             tls: {
-                rejectUnauthorized: false,
+                rejectUnauthorized: false, // For self-signed certs or some proxies
             },
         });
     }
